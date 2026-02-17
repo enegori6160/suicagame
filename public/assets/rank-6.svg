@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs>
+<radialGradient id="g" cx="35%" cy="30%" r="70%">
+<stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+<stop offset="35%" stop-color="#ffbe7b"/>
+<stop offset="100%" stop-color="#ad6a1f"/>
+</radialGradient>
+</defs>
+<circle cx="128" cy="128" r="118" fill="url(#g)"/>
+<circle cx="128" cy="128" r="118" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="6"/>
+<ellipse cx="128" cy="203" rx="74" ry="20" fill="#0f2746" opacity="0.18"/>
+<text x="128" y="148" text-anchor="middle" font-size="76" font-family="Noto Sans JP, Segoe UI Emoji">🗂️</text>
+<text x="128" y="212" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="700">RANK 6</text>
+</svg>
