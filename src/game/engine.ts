@@ -9,7 +9,7 @@ import {
   Runner,
   World,
 } from 'matter-js';
-import { GAME_SETTINGS, PIECE_BY_RANK, PIECES, PieceDef } from './config';
+import { GAME_SETTINGS, PIECE_BY_RANK, PieceDef } from './config';
 
 type PieceBody = Body & {
   plugin: {
@@ -38,6 +38,7 @@ export class CorporateMergeGame {
   private worldContainer: Container;
   private spriteByBodyId = new Map<number, Sprite>();
   private bodyById = new Map<number, PieceBody>();
+  private textureByRank = new Map<number, Texture>();
   private mergeLocks = new Map<string, number>();
   private raf = 0;
   private lastFrameTime = 0;
@@ -63,7 +64,7 @@ export class CorporateMergeGame {
       velocityIterations: 6,
       constraintIterations: 2,
     });
-    this.runner = Runner.create({ isFixed: true, delta: 1000 / 60 });
+    this.runner = Runner.create({ delta: 1000 / 60 });
     this.worldContainer = new Container();
     this.app.stage.addChild(this.worldContainer);
 
@@ -136,13 +137,13 @@ export class CorporateMergeGame {
   }
 
   private frame = (now: number) => {
-    const delta = Math.min(now - this.lastFrameTime, GAME_SETTINGS.maxDeltaMs);
-    this.lastFrameTime = now;
+    const frameNow = this.lastFrameTime + Math.min(now - this.lastFrameTime, GAME_SETTINGS.maxDeltaMs);
+    this.lastFrameTime = frameNow;
 
     if (!this.isPaused) {
       this.syncSprites();
-      this.checkDangerLine(now);
-      this.cleanupMergeLocks(now);
+      this.checkDangerLine(frameNow);
+      this.cleanupMergeLocks(frameNow);
     }
 
     this.raf = requestAnimationFrame(this.frame);
@@ -216,7 +217,7 @@ export class CorporateMergeGame {
     Composite.add(this.engine.world, body);
     this.bodyById.set(body.id, body);
 
-    const sprite = Sprite.from(piece.spritePath);
+    const sprite = new Sprite(this.getTextureForPiece(piece));
     sprite.anchor.set(0.5);
     sprite.width = piece.radius * 2;
     sprite.height = piece.radius * 2;
@@ -305,7 +306,7 @@ export class CorporateMergeGame {
   }
 
   private setupPendingGhost() {
-    this.pendingGhost = new Sprite(Texture.from(PIECE_BY_RANK.get(this.pendingRank)!.spritePath));
+    this.pendingGhost = new Sprite(this.getTextureForPiece(PIECE_BY_RANK.get(this.pendingRank)!));
     this.pendingGhost.anchor.set(0.5);
     this.pendingGhost.alpha = 0.85;
     this.pendingGhost.position.set(this.pendingX, GAME_SETTINGS.spawnY);
@@ -317,10 +318,59 @@ export class CorporateMergeGame {
     if (!this.pendingGhost) return;
     const piece = PIECE_BY_RANK.get(this.pendingRank);
     if (!piece) return;
-    this.pendingGhost.texture = Texture.from(piece.spritePath);
+    this.pendingGhost.texture = this.getTextureForPiece(piece);
     this.pendingGhost.width = piece.radius * 2;
     this.pendingGhost.height = piece.radius * 2;
     this.pendingGhost.position.set(this.pendingX, GAME_SETTINGS.spawnY);
+  }
+
+  private getTextureForPiece(piece: PieceDef): Texture {
+    const cached = this.textureByRank.get(piece.rank);
+    if (cached) return cached;
+
+    const texture = this.createFallbackTexture(piece);
+    this.textureByRank.set(piece.rank, texture);
+    return texture;
+  }
+
+  private createFallbackTexture(piece: PieceDef): Texture {
+    const size = 128;
+    const radius = 58;
+    const badgeColors = [
+      0x5b8ff9, 0x6f86ff, 0x7d78ff, 0x6fa1ff, 0x5ab1d8,
+      0x59b39c, 0x71ba6b, 0xc1b65f, 0xd39d52, 0xe18e54,
+    ];
+    const color = badgeColors[(piece.rank - 1) % badgeColors.length];
+
+    const root = new Container();
+
+    const badge = new Graphics();
+    badge.circle(size / 2, size / 2, radius);
+    badge.fill({ color, alpha: 0.98 });
+    badge.stroke({ color: 0xffffff, width: 4, alpha: 0.7 });
+    root.addChild(badge);
+
+    const rankText = new Text({
+      text: `${piece.rank}`,
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 42,
+        fontWeight: '700',
+        fill: 0xffffff,
+      },
+      resolution: window.devicePixelRatio || 1,
+    });
+    rankText.anchor.set(0.5);
+    rankText.position.set(size / 2, size / 2);
+    root.addChild(rankText);
+
+    const texture = this.app.renderer.generateTexture({
+      target: root,
+      resolution: Math.max(1, window.devicePixelRatio || 1),
+      antialias: true,
+    });
+    root.destroy({ children: true });
+    return texture;
   }
 
   private randomInitialRank() {
